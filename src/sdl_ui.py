@@ -5,7 +5,7 @@ from pygame.locals import *
 
 import chippy
 
-FACTOR = 4
+FACTOR = 8
 
 ACTIVE = (0xff,)*3
 CLEAN = (0x00,)*3
@@ -29,26 +29,24 @@ class PygameUi:
 
     def handle_input(self):
         for event in pygame.event.get():
-            if event.key == ESCAPE:
-                sys.exit(0)
+            if event.type in [pygame.KEYUP, pygame.KEYDOWN]:
+                if event.key == K_ESCAPE:
+                    sys.exit(0)
 
-            name = pygame.key.get_name()
-            print name
-            raw_input()
-            if event.key in KEYS:
-                i = KEYS.indexof(eveny.key)
-                if event.type == KEYDOWN:
-                    self.buttons[i] = True
-                elif event.type == KEYUP:
-                    self.buttons[i] = True
+                if event.key in KEYS:
+                    i = KEYS.index(event.key)
+                    if event.type == pygame.KEYDOWN:
+                        self.buttons[i] = True
+                    elif event.type == pygame.KEYUP:
+                        self.buttons[i] = False
 
     def clear(self):
         self.buf = [[False] * chippy.RESY for _ in range(chippy.RESX)]
         self.screen.fill(CLEAN, (0, 0, chippy.RESX * FACTOR, chippy.RESY * FACTOR))
 
     def invert_pixel(self, x, y):
-        print x, y
-        print len(self.buf), len(self.buf[0])
+        #print x, y
+        #print len(self.buf), len(self.buf[0])
         value = not self.buf[x][y]
         self.buf[x][y] = value
 
@@ -61,14 +59,18 @@ class PygameUi:
     def update(self):
         pygame.display.flip()
 
-    def wait_key(self):
-        raw_input()
-        handle_input()
-        print "wait for key not implemented"
+    def wait_key(self, key):
+        while True:
+            self.handle_input()
+
+            if self.buttons[key]:
+                return True
+            else:
+                time.sleep(0.01)
 
     def key(self, key):
-        raw_input()
-        handle_input()
+        self.handle_input()
+        #print self.buttons
         return self.buttons[key]
 
 ui = PygameUi()

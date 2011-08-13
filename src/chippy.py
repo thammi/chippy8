@@ -1,5 +1,6 @@
 import re
 import random
+import time
 
 RESX = 64
 RESY = 32
@@ -20,10 +21,47 @@ class Chip8:
 
         # timers
         self.sound = 0
-        self.delay = 0
+        self.delay = (0, 0)
 
         # load the game
         self.load_file(fn)
+        self.init_fonts()
+
+    def init_fonts(self):
+        fonts = []
+
+        # 0
+        fonts.extend([0xf0, 0x09, 0x09, 0x09, 0xf0])
+        # 1
+        fonts.extend([0x20, 0x60, 0x20, 0x20, 0x70])
+        # 2
+        fonts.extend([0xf0, 0x10, 0xf0, 0x80, 0xf0])
+        # 3
+        fonts.extend([0xf0, 0x10, 0xf0, 0x10, 0xf0])
+        # 5
+        fonts.extend([0x90, 0x90, 0xf0, 0x10, 0x10])
+        # 6
+        fonts.extend([0xf0, 0x80, 0xf0, 0x90, 0xf0])
+        # 7
+        fonts.extend([0xf0, 0x10, 0x20, 0x40, 0x40])
+        # 8
+        fonts.extend([0xf0, 0x90, 0xf0, 0x90, 0xf0])
+        # 9
+        fonts.extend([0xf0, 0x90, 0xf0, 0x10, 0xf0])
+        # a
+        fonts.extend([0xf0, 0x90, 0xf0, 0x90, 0x90])
+        # b
+        fonts.extend([0xe0, 0x90, 0xe0, 0x90, 0xe0])
+        # c
+        fonts.extend([0xf0, 0x80, 0x80, 0x80, 0xf0])
+        # d
+        fonts.extend([0xe0, 0x90, 0x90, 0x90, 0xe0])
+        # e
+        fonts.extend([0xf0, 0x80, 0xf0, 0x80, 0xf0])
+        # f
+        fonts.extend([0xf0, 0x80, 0xf0, 0x80, 0x80])
+
+        self.memory[0:len(fonts)] = fonts
 
     def load_file(self, fn):
         f = open(fn)
@@ -66,14 +104,18 @@ class Chip8:
         self.pc = n + self.r[0]
 
     def put_sound(self, n):
+        # TODO
         self.sound = n
 
-    def put_delay(self, n):
-        self.delay = n
+    def put_delay(self, reg):
+        self.delay = (self.r[reg], time.time())
+        print self.delay
 
     def get_delay(self, reg):
-        self.delay -= 1
-        self.r[reg] = self.delay
+        val, start = self.delay
+        cur = int(val - (time.time() - start) * 60)
+        print "delay:", cur, "@", time.time()
+        self.r[reg] = max(cur, 0)
 
     def put_i(self, n):
         self.i = n
@@ -137,12 +179,12 @@ class Chip8:
 
     def rshift_register(self, reg, _):
         self.r[0xf] = self.r[reg] & 1
-        self.r[a] >>= 1
+        self.r[reg] >>= 1
 
     def lshift_register(self, reg, _):
-        v = self.r[a]
+        v = self.r[reg]
         self.r[0xf] = v & 0x80 << 8
-        self.r[a] = v << 1 & 0xff
+        self.r[reg] = v << 1 & 0xff
 
     def store_registers(self, reg):
         size = reg + 1
@@ -167,7 +209,7 @@ class Chip8:
             x = self.r[a]
 
             for _ in range(8):
-                if line >> 8 & 1:
+                if line >> 7 & 1:
                     erase |= self.ui.invert_pixel(x % RESX, y % RESY)
 
                 line <<= 1
@@ -179,17 +221,16 @@ class Chip8:
 
         self.r[0xf] = 1 if erase else 0
 
-    def get_letter(self, n):
-        print "letters not implemented"
-        raw_input()
+    def get_letter(self, reg):
+        self.i = self.r[reg] * 5
 
-    def s_key_down(self, key):
-        if self.ui.key(key):
-            self.jump()
+    def s_key_down(self, reg):
+        if self.ui.key(self.r[reg]):
+            self.skip()
 
-    def s_key_up(self, key):
-        if not self.ui.key(key):
-            self.jump()
+    def s_key_up(self, reg):
+        if not self.ui.key(self.r[reg]):
+            self.skip()
 
     def run(self):
         memory = self.memory
@@ -198,19 +239,21 @@ class Chip8:
             raw_code = memory[self.pc:self.pc+2]
             code = ("%02x"*2 % tuple(raw_code)).upper()
 
-            print code
+            #print code
 
             self.pc += 2
 
             self.opcode(code)
 
-            for i, r in enumerate(self.r):
-                print "%2x: %02x" % (i, r)
+            #for i, r in enumerate(self.r):
+                #print "%2x: %02x" % (i, r)
 
-            print " i: %02x" % self.i
-            print "pc: %3x" % self.pc
+            #print " i: %02x" % self.i
+            #print "pc: %3x" % self.pc
 
             #raw_input()
+
+            time.sleep(0.001)
 
     def opcode(self, cur):
         codes = {
